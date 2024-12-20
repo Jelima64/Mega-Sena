@@ -1,0 +1,63 @@
+import pandas as pd
+import random
+import numpy as np
+from google.colab import files  # Import necessário para o Google Colab
+
+def gerar_jogo(dezenas_disponiveis):
+    """Gera um jogo da Mega Sena com base nas dezenas disponíveis."""
+    return random.sample(dezenas_disponiveis, 6)
+
+def gerar_jogo_com_peso_e_repeticoes_condicionado(df, num_concursos=50, pontos_minimos=3, dezenas_disponiveis=None):
+    """Gera um jogo condicionado a ter pelo menos 'pontos_minimos' em algum dos 'num_concursos' anteriores."""
+    while True:
+        jogo = gerar_jogo(dezenas_disponiveis)
+        ultimos_concursos = df.tail(num_concursos) # Não precisa mais do select_dtypes aqui
+        for index in ultimos_concursos.index:
+            # Seleciona apenas as colunas que contêm números entre 1 e 60
+            numeros_concurso = [valor for valor in ultimos_concursos.loc[index].values if isinstance(valor, (int, np.integer)) and 1 <= valor <= 60]
+            jogo_concurso = set(numeros_concurso)
+            if len(set(jogo) & jogo_concurso) >= pontos_minimos:
+                return jogo
+
+def imprimir_jogos(jogos):
+    """Imprime os jogos formatados."""
+    if not jogos:
+        print("Nenhum jogo atendeu aos critérios.")
+        return
+    for i, jogo in enumerate(jogos):
+        jogo.sort()
+        print(f"Jogo {i+1}: {jogo}")
+
+# Carregar o arquivo Excel
+try:
+    df = pd.read_excel('Mega-Sena.xlsx')
+except FileNotFoundError:
+    print("Arquivo 'Mega-Sena.xlsx' não encontrado. Faça o upload:")
+    uploaded = files.upload() # Somente necessário no Google Colab
+    if 'Mega-Sena.xlsx' in uploaded:
+        df = pd.read_excel('Mega-Sena.xlsx')
+    else:
+        raise FileNotFoundError("Arquivo 'Mega-Sena.xlsx' não foi carregado.")
+
+# Preparar as dezenas disponíveis (dos últimos 50 concursos)
+num_concursos_analise = 50
+
+# Filtrar apenas as colunas que contêm números entre 1 e 60
+colunas_dezenas = [coluna for coluna in df.columns if all(isinstance(valor, (int, np.integer)) and 1 <= valor <= 60 or pd.isna(valor) for valor in df[coluna])]
+df_dezenas = df[colunas_dezenas]
+
+dezenas_disponiveis = list(set(df_dezenas.tail(num_concursos_analise).stack().dropna().tolist())) # Remove valores NaN
+
+# Gerar e imprimir os jogos condicionados
+quantidade_de_jogos = 7
+meus_jogos_condicionados = [gerar_jogo_com_peso_e_repeticoes_condicionado(df_dezenas, dezenas_disponiveis=dezenas_disponiveis) for _ in range(quantidade_de_jogos)]
+
+print("\nJogos Condicionados:")
+imprimir_jogos(meus_jogos_condicionados)
+
+# Gerar e imprimir jogos aleatórios (para comparação)
+meus_jogos_aleatorios = [random.sample(range(1, 61), 6) for _ in range(quantidade_de_jogos)]
+print("\nJogos Aleatórios:")
+imprimir_jogos(meus_jogos_aleatorios)
+
+print(f"\nDezenas disponíveis usadas para os jogos condicionados (últimos {num_concursos_analise} concursos): {sorted(dezenas_disponiveis)}")
