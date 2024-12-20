@@ -1,0 +1,25 @@
+import random
+
+def gerar_jogo():
+    """Gera um jogo da Mega Sena com 6 números únicos."""
+    return random.sample(range(1, 61), 6)
+
+def gerar_multiplos_jogos(quantidade):
+    """Gera uma quantidade específica de jogos da Mega Sena."""
+    jogos = []
+    for _ in range(quantidade):
+        jogos.append(gerar_jogo())
+    return jogos
+
+def imprimir_jogos(jogos):
+    """Imprime os jogos formatados."""
+    for i, jogo in enumerate(jogos):
+        jogo.sort()  # Ordena os números para melhor visualização
+        print(f"Jogo {i+1}: {jogo}")
+
+# Gera 7 jogos
+quantidade_de_jogos = 7
+meus_jogos = gerar_multiplos_jogos(quantidade_de_jogos)
+
+# Imprime os jogos gerados
+imprimir_jogos(meus_jogos)
