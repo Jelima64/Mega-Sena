@@ -1,0 +1,78 @@
+import pandas as pd
+import random
+import numpy as np
+from google.colab import files
+
+def gerar_jogo(df, dezenas_disponiveis):
+    """Gera um jogo da Mega Sena com base nas dezenas disponíveis."""
+    return random.sample(dezenas_disponiveis, 6)
+
+def gerar_multiplos_jogos(df, quantidade, dezenas_disponiveis):
+    """Gera uma quantidade específica de jogos da Mega Sena."""
+    jogos = []
+    for _ in range(quantidade):
+        jogos.append(gerar_jogo(df, dezenas_disponiveis))
+    return jogos
+
+def imprimir_jogos(jogos):
+    """Imprime os jogos formatados."""
+    for i, jogo in enumerate(jogos):
+        jogo.sort()  # Ordena os números para melhor visualização
+        print(f"Jogo {i+1}: {jogo}")
+
+def gerar_jogo_com_peso_e_repeticoes_condicionado(df, num_concursos=50, pontos_minimos=4, dezenas_disponiveis=None):
+    while True:
+        jogo = gerar_jogo(df, dezenas_disponiveis)  # Usa a função gerar_jogo modificada
+        # Verifica a condição de pontos mínimos nos últimos 50 concursos
+        ultimos_concursos = df.tail(num_concursos).select_dtypes(include=np.number)
+        pontos = 0
+        for index in ultimos_concursos.index:
+            jogo_concurso = set(ultimos_concursos.loc[index].values)
+            pontos_concurso = len(set(jogo) & jogo_concurso)
+            if pontos_concurso >= pontos_minimos:
+                pontos += 1
+        if pontos > 0:
+            return jogo
+
+
+# Carregar o arquivo Excel (nome corrigido)
+try:
+    df = pd.read_excel('Mega-Sena.xlsx')  # Correção: Mega-Sena.xlsx
+except FileNotFoundError:
+    print("Arquivo 'Mega-Sena.xlsx' não encontrado. Faça o upload:")  # Correção: Mega-Sena.xlsx
+    uploaded = files.upload()
+    if 'Mega-Sena.xlsx' in uploaded:  # Correção: Mega-Sena.xlsx
+        df = pd.read_excel('Mega-Sena.xlsx')  # Correção: Mega-Sena.xlsx
+    else:
+        raise FileNotFoundError("Arquivo 'Mega-Sena.xlsx' não foi carregado.")  # Correção: Mega-Sena.xlsx
+
+# Lista com todas as dezenas sorteadas nos últimos 50 concursos
+dezenas_disponiveis = list(set(df.tail(50).select_dtypes(include=np.number).stack().tolist()))
+
+# Gera 7 jogos com a condição de 4 pontos nos últimos 50 concursos
+quantidade_de_jogos = 7
+meus_jogos = [gerar_jogo_com_peso_e_repeticoes_condicionado(df, dezenas_disponiveis=dezenas_disponiveis) for _ in range(quantidade_de_jogos)]
+
+def gerar_jogo():
+    """Gera um jogo da Mega Sena com 6 números únicos."""
+    return random.sample(range(1, 61), 6)
+
+def gerar_multiplos_jogos(quantidade):
+    """Gera uma quantidade específica de jogos da Mega Sena."""
+    jogos = []
+    for _ in range(quantidade):
+        jogos.append(gerar_jogo())
+    return jogos
+
+def imprimir_jogos(jogos):
+    """Imprime os jogos formatados."""
+    for i, jogo in enumerate(jogos):
+        jogo.sort()  # Ordena os números para melhor visualização
+        print(f"Jogo {i+1}: {jogo}")
+
+# Gera 7 jogos
+quantidade_de_jogos = 7
+meus_jogos = gerar_multiplos_jogos(quantidade_de_jogos)
+
+# Imprime os jogos gerados
+imprimir_jogos(meus_jogos)
