@@ -1,0 +1,104 @@
+import pandas as pd
+import random
+import numpy as np
+from collections import Counter
+from google.colab import files  # Import necessário para o Google Colab
+
+def gerar_jogo(dezenas_disponiveis):
+    """Gera um jogo da Mega Sena com base nas dezenas disponíveis."""
+    return random.sample(dezenas_disponiveis, 6)
+
+def gerar_jogo_com_peso_frequencia(frequencia, num_sorteio=6):
+    """Gera um jogo com peso na frequência das dezenas."""
+    dezenas = list(frequencia.keys())
+    pesos = list(frequencia.values())
+    total_pesos = sum(pesos)
+    pesos_normalizados = [peso / total_pesos for peso in pesos]
+    return random.choices(dezenas, weights=pesos_normalizados, k=num_sorteio)
+
+def gerar_jogo_condicionado(df, num_concursos=50, pontos_minimos=3, dezenas_disponiveis=None):
+    """Gera um jogo condicionado a ter pelo menos 'pontos_minimos' em ALGUM dos 'num_concursos' anteriores."""
+    while True:
+        jogo = gerar_jogo(dezenas_disponiveis)
+        ultimos_concursos = df.tail(num_concursos)
+        jogo_valido = False
+        for index in ultimos_concursos.index:
+            numeros_concurso = [valor for valor in ultimos_concursos.loc[index].values if isinstance(valor, (int, np.integer)) and 1 <= valor <= 60]
+            jogo_concurso = set(numeros_concurso)
+            if len(set(jogo) & jogo_concurso) >= pontos_minimos:
+                jogo_valido = True
+                break
+        if jogo_valido:
+            return jogo
+
+def imprimir_jogos(jogos):
+    """Imprime os jogos formatados."""
+    if not jogos:
+        print("Nenhum jogo atendeu aos critérios.")
+        return
+    for i, jogo in enumerate(jogos):
+        jogo.sort()
+        print(f"Jogo {i+1}: {jogo}")
+
+# Parâmetros configuráveis
+num_concursos_analise = 50  # Número de concursos a analisar para frequência e condição
+pontos_minimos = 3         # Número mínimo de pontos para considerar um jogo condicionado
+quantidade_de_jogos = 7   # Quantidade de jogos a gerar
+
+# Carregar o arquivo Excel
+try:
+    df = pd.read_excel('Mega-Sena.xlsx')
+except FileNotFoundError:
+    print("Arquivo 'Mega-Sena.xlsx' não encontrado. Faça o upload:")
+    uploaded = files.upload() # Somente necessário no Google Colab
+    if 'Mega-Sena.xlsx' in uploaded:
+        df = pd.read_excel('Mega-Sena.xlsx')
+    else:
+        raise FileNotFoundError("Arquivo 'Mega-Sena.xlsx' não foi carregado.")
+
+# Filtrar apenas as colunas que contêm números entre 1 e 60
+colunas_dezenas = [coluna for coluna in df.columns if all(isinstance(valor, (int, np.integer)) and 1 <= valor <= 60 or pd.isna(valor) for valor in df[coluna])]
+df_dezenas = df[colunas_dezenas]
+
+# Usando os ÚLTIMOS concursos
+df_ultimos_concursos = df_dezenas.tail(num_concursos_analise)
+
+# Preparar as dezenas disponíveis (dos ÚLTIMOS concursos)
+dezenas_disponiveis = list(set(df_ultimos_concursos.stack().dropna().tolist()))
+
+# Análise de frequência das dezenas (dos ÚLTIMOS concursos)
+frequencia_dezenas = Counter(df_ultimos_concursos.stack().dropna().tolist())
+
+# Gerar jogos com peso na frequência
+meus_jogos_frequencia = [gerar_jogo_com_peso_frequencia(frequencia_dezenas) for _ in range(quantidade_de_jogos)]
+
+print("\nJogos com Peso na Frequência:")
+imprimir_jogos(meus_jogos_frequencia)
+
+# Gerar jogos condicionados (garantindo jogos únicos)
+meus_jogos_condicionados = []
+while len(meus_jogos_condicionados) < quantidade_de_jogos:
+    novo_jogo = gerar_jogo_condicionado(df_dezenas, num_concursos=num_concursos_analise, pontos_minimos=pontos_minimos, dezenas_disponiveis=dezenas_disponiveis)
+    if novo_jogo not in meus_jogos_condicionados:
+        meus_jogos_condicionados.append(novo_jogo)
+
+print("\nJogos Condicionados:")
+imprimir_jogos(meus_jogos_condicionados)
+
+# Gerar jogos aleatórios
+meus_jogos_aleatorios = [random.sample(range(1, 61), 6) for _ in range(quantidade_de_jogos)]
+
+print("\nJogos Aleatórios:")
+imprimir_jogos(meus_jogos_aleatorios)
+
+# Análise dos jogos condicionados (total de jogos únicos)
+total_jogos_condicionados = len(meus_jogos_condicionados)
+print(f"\nTotal de jogos condicionados únicos gerados: {total_jogos_condicionados}")
+
+# Encontra a dezena mais frequente nos jogos condicionados
+frequencia_jogos_condicionados = Counter([numero for jogo in meus_jogos_condicionados for numero in jogo])
+dezena_mais_frequente = frequencia_jogos_condicionados.most_common(1)
+print(f"\nDezena mais frequente nos jogos condicionados: {dezena_mais_frequente}")
+
+print(f"\nDezenas disponíveis usadas para os jogos condicionados (últimos {num_concursos_analise} concursos): {sorted(dezenas_disponiveis)}")
+print(f"\nFrequência das dezenas nos últimos {num_concursos_analise} concursos: {frequencia_dezenas}")
