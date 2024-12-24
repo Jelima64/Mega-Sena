@@ -1,0 +1,121 @@
+import pandas as pd
+import random
+import numpy as np
+from collections import Counter
+from google.colab import files
+
+def gerar_jogo(dezenas_disponiveis):
+    return random.sample(dezenas_disponiveis, 6)
+
+def gerar_jogo_com_peso_frequencia(frequencia):
+    dezenas = list(frequencia.keys())
+    pesos = list(frequencia.values())
+    pesos_normalizados = np.array(pesos) / np.sum(pesos)
+    return list(np.random.choice(dezenas, size=6, replace=False, p=pesos_normalizados))
+
+def gerar_jogo_condicionado(df, num_concursos=50, pontos_minimos=3, dezenas_disponiveis=None, meus_jogos_condicionados = None):
+    while True:
+        jogo = gerar_jogo(dezenas_disponiveis)
+        if meus_jogos_condicionados is not None and jogo not in meus_jogos_condicionados:
+            ultimos_concursos = df.tail(num_concursos)
+            for index in ultimos_concursos.index:
+                numeros_concurso = [valor for valor in ultimos_concursos.loc[index].values if isinstance(valor, (int, np.integer)) and 1 <= valor <= 60]
+                if len(set(jogo) & set(numeros_concurso)) >= pontos_minimos:
+                    return jogo
+        elif meus_jogos_condicionados is None:
+            ultimos_concursos = df.tail(num_concursos)
+            for index in ultimos_concursos.index:
+                numeros_concurso = [valor for valor in ultimos_concursos.loc[index].values if isinstance(valor, (int, np.integer)) and 1 <= valor <= 60]
+                if len(set(jogo) & set(numeros_concurso)) >= pontos_minimos:
+                    return jogo
+
+def imprimir_jogos(jogos):
+    if not jogos:
+        print("Nenhum jogo atendeu aos critérios.")
+        return
+    for i, jogo in enumerate(jogos):
+        jogo.sort()
+        print(f"Jogo {i+1}: {jogo}")
+
+def aplicar_regra_grupos(quantidade_jogos):
+    grupo_a = [1, 2, 24, 6, 16, 19, 20, 27, 28, 45, 51, 52, 46, 49, 50, 56, 59]
+    grupo_b = [4, 13, 14, 25, 8, 17, 18, 29, 43, 54, 36, 57, 58]
+    grupo_c = [3, 12, 15, 21, 22, 7, 9, 26, 31, 55, 39, 40, 47, 48, 60]
+    grupo_d = [5, 11, 23, 10, 30, 32, 33, 34, 35, 41, 42, 44, 53, 37, 38]
+
+    jogos_filtrados = []
+    while len(jogos_filtrados) < quantidade_jogos:
+        jogo = []
+        jogo.extend(random.sample(grupo_a, 2))
+        jogo.extend(random.sample(grupo_b, 2))
+        jogo.extend(random.sample(grupo_c, 1))
+        jogo.extend(random.sample(grupo_d, 1))
+        jogo.sort()
+        if jogo not in jogos_filtrados:
+          jogos_filtrados.append(jogo)
+    return jogos_filtrados
+
+# Parâmetros configuráveis
+num_concursos_analise = 50
+pontos_minimos = 3
+quantidade_de_jogos = 7
+
+# Carregar o arquivo Excel
+try:
+    df = pd.read_excel('Mega-Sena.xlsx')
+except FileNotFoundError:
+    print("Arquivo 'Mega-Sena.xlsx' não encontrado. Faça o upload:")
+    uploaded = files.upload()
+    if 'Mega-Sena.xlsx' in uploaded:
+        df = pd.read_excel('Mega-Sena.xlsx')
+    else:
+        raise FileNotFoundError("Arquivo 'Mega-Sena.xlsx' não foi carregado.")
+
+# Filtrar apenas as colunas que contêm números entre 1 e 60
+colunas_dezenas = [coluna for coluna in df.columns if all(isinstance(valor, (int, np.integer)) and 1 <= valor <= 60 or pd.isna(valor) for valor in df[coluna])]
+df_dezenas = df[colunas_dezenas]
+
+# Usando os ÚLTIMOS concursos
+df_ultimos_concursos = df_dezenas.tail(num_concursos_analise)
+
+# Preparar as dezenas disponíveis (dos ÚLTIMOS concursos)
+dezenas_disponiveis = list(set(df_ultimos_concursos.stack().dropna().tolist()))
+
+# Análise de frequência das dezenas (dos ÚLTIMOS concursos)
+frequencia_dezenas = Counter(df_ultimos_concursos.stack().dropna().tolist())
+
+# Gerar jogos com peso na frequência (aplicando regra de grupos)
+meus_jogos_frequencia = []
+while len(meus_jogos_frequencia) < quantidade_de_jogos:
+    novo_jogo = gerar_jogo_com_peso_frequencia(frequencia_dezenas)
+    if novo_jogo not in meus_jogos_frequencia:
+      meus_jogos_frequencia.append(novo_jogo)
+print("\nJogos com Peso na Frequência (Aplicando Regra de Grupos):")
+meus_jogos_frequencia = aplicar_regra_grupos(quantidade_de_jogos)
+imprimir_jogos(meus_jogos_frequencia)
+
+# Gerar jogos condicionados (aplicando regra de grupos)
+meus_jogos_condicionados = []
+while len(meus_jogos_condicionados) < quantidade_de_jogos:
+    novo_jogo = gerar_jogo_condicionado(df_dezenas, num_concursos=num_concursos_analise, pontos_minimos=pontos_minimos, dezenas_disponiveis=dezenas_disponiveis, meus_jogos_condicionados = meus_jogos_condicionados)
+    if novo_jogo not in meus_jogos_condicionados:
+        meus_jogos_condicionados.append(novo_jogo)
+print("\nJogos Condicionados (Aplicando Regra de Grupos):")
+meus_jogos_condicionados = aplicar_regra_grupos(quantidade_de_jogos)
+imprimir_jogos(meus_jogos_condicionados)
+
+# Gerar jogos aleatórios (aplicando regra de grupos)
+meus_jogos_aleatorios = []
+while len(meus_jogos_aleatorios) < quantidade_de_jogos:
+    novo_jogo = random.sample(range(1, 61), 6)
+    if novo_jogo not in meus_jogos_aleatorios:
+        meus_jogos_aleatorios.append(novo_jogo)
+print("\nJogos Aleatórios (Aplicando Regra de Grupos):")
+meus_jogos_aleatorios = aplicar_regra_grupos(quantidade_de_jogos)
+imprimir_jogos(meus_jogos_aleatorios)
+
+# Análise dos jogos condicionados (total de jogos únicos)
+total_jogos_condicionados = len(meus_jogos_condicionados)
+print(f"\nTotal de jogos condicionados únicos gerados: {total_jogos_condicionados}")
+
+# Encontra a dezena mais frequente nos jogos
